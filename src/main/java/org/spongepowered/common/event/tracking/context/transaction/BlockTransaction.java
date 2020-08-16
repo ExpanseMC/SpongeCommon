@@ -24,8 +24,8 @@
  */
 package org.spongepowered.common.event.tracking.context.transaction;
 
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -75,6 +75,8 @@ import org.spongepowered.common.world.SpongeBlockChangeFlag;
 import org.spongepowered.common.world.SpongeLocatableBlockBuilder;
 import org.spongepowered.math.vector.Vector3i;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.EnumMap;
@@ -96,7 +98,7 @@ public abstract class BlockTransaction {
             transaction -> {
                 final BlockChange blockChange = ((SpongeBlockSnapshot) transaction.getOriginal()).blockChange;
                 builders[blockChange.ordinal()].add(transaction);
-                builders[MULTI_CHANGE_INDEX].add(transaction);
+                builders[BlockTransaction.MULTI_CHANGE_INDEX].add(transaction);
             }
         ;
     static final Function<SpongeBlockSnapshot, Optional<Transaction<BlockSnapshot>>> TRANSACTION_CREATION =
@@ -130,14 +132,6 @@ public abstract class BlockTransaction {
             .toString();
     }
 
-    final boolean addEffect(final ResultingTransactionBySideEffect effect) {
-        if (this.sideEffects == null) {
-            this.sideEffects = new LinkedList<>();
-        }
-        this.sideEffects.push(effect);
-        return true;
-    }
-
     public abstract void populateChunkEffects(
         TransactionalCaptureSupplier blockTransactor,
         ChunkPipeline.Builder builder, ChunkSection chunksection
@@ -154,7 +148,7 @@ public abstract class BlockTransaction {
         return this.sideEffects != null && this.sideEffects.stream().anyMatch(effect -> effect.head != null);
     }
 
-    public abstract Optional<BiConsumer<PhaseContext<?>, CauseStackManager.StackFrame>> getFrameMutator();
+    public abstract Optional<BiConsumer<PhaseContext<@NonNull ?>, CauseStackManager.StackFrame>> getFrameMutator();
 
     public abstract void addToPrinter(PrettyPrinter printer);
 
@@ -170,11 +164,7 @@ public abstract class BlockTransaction {
         return false;
     }
 
-    public boolean requiresEvent() {
-        return this.sideEffects != null;
-    }
-
-    public abstract Event generateEvent(PhaseContext<?> context, ImmutableList<BlockTransaction> transactions, Cause currentCause);
+    public abstract Event generateEvent(PhaseContext<@NonNull ?> context, ImmutableList<BlockTransaction> transactions, Cause currentCause);
 
     public abstract void restore();
 
@@ -192,10 +182,10 @@ public abstract class BlockTransaction {
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         @Override
-        public final Event generateEvent(final PhaseContext<?> context, final ImmutableList<BlockTransaction> transactions,
+        public final Event generateEvent(final PhaseContext<@NonNull ?> context, final ImmutableList<BlockTransaction> transactions,
             final Cause currentCause
         ) {
-            final ListMultimap<BlockPos, SpongeBlockSnapshot> positions = ArrayListMultimap.create();
+            final ListMultimap<BlockPos, SpongeBlockSnapshot> positions = LinkedListMultimap.create();
             for (final BlockTransaction transaction : transactions) {
                 if (!positions.containsKey(transaction.affectedPosition)) {
                     positions.put(transaction.affectedPosition, ((BlockEventBasedTransaction) transaction).getOriginalSnapshot());
@@ -203,15 +193,20 @@ public abstract class BlockTransaction {
                 positions.put(transaction.affectedPosition, ((BlockEventBasedTransaction) transaction).getResultingSnapshot());
             }
 
-            final ImmutableList<Transaction<BlockSnapshot>>[] transactionArrays = new ImmutableList[EVENT_COUNT];
-            final ImmutableList.Builder<Transaction<BlockSnapshot>>[] transactionBuilders = new ImmutableList.Builder[EVENT_COUNT];
-            for (int i = 0; i < EVENT_COUNT; i++) {
+            final ImmutableList<Transaction<BlockSnapshot>>[] transactionArrays = new ImmutableList[BlockTransaction.EVENT_COUNT];
+            final ImmutableList.Builder<Transaction<BlockSnapshot>>[] transactionBuilders = new ImmutableList.Builder[BlockTransaction.EVENT_COUNT];
+            for (int i = 0; i < BlockTransaction.EVENT_COUNT; i++) {
                 transactionBuilders[i] = new ImmutableList.Builder<>();
             }
-            // Bug is here- use the multimap
-            final ImmutableList<Transaction<BlockSnapshot>> eventTransactions = transactions.stream()
-                .map(transaction -> {
-                    final List<SpongeBlockSnapshot> snapshots = positions.get(transaction.affectedPosition);
+
+            final ImmutableList<Transaction<BlockSnapshot>> eventTransactions = positions.asMap().entrySet()
+                .stream()
+                .map(entry -> {
+                    if (entry.getValue().size() < 2) {
+                        // Error case
+                        return Optional.<Transaction<BlockSnapshot>>empty();
+                    }
+                    final List<SpongeBlockSnapshot> snapshots = new ArrayList<>(entry.getValue());
                     final SpongeBlockSnapshot original = snapshots.get(0);
                     final SpongeBlockSnapshot result = snapshots.get(snapshots.size() - 1);
                     final ImmutableList<BlockSnapshot> intermediary;
@@ -222,9 +217,12 @@ public abstract class BlockTransaction {
                     }
                     final Transaction<BlockSnapshot> eventTransaction = new Transaction<>(original, result, intermediary);
                     transactionBuilders[original.blockChange.ordinal()].add(eventTransaction);
-                    return eventTransaction;
-                }).collect(ImmutableList.toImmutableList());
-            for (int i = 0; i < EVENT_COUNT; i++) {
+                    return Optional.of(eventTransaction);
+                })
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(ImmutableList.toImmutableList());
+            for (int i = 0; i < BlockTransaction.EVENT_COUNT; i++) {
                 transactionArrays[i] = transactionBuilders[i].build();
             }
             final @Nullable ChangeBlockEvent[] mainEvents = new ChangeBlockEvent[BlockChange.values().length];
@@ -296,7 +294,7 @@ public abstract class BlockTransaction {
         }
 
         @Override
-        public Optional<BiConsumer<PhaseContext<?>, CauseStackManager.StackFrame>> getFrameMutator() {
+        public Optional<BiConsumer<PhaseContext<@NonNull ?>, CauseStackManager.StackFrame>> getFrameMutator() {
             return Optional.empty();
         }
 
@@ -343,7 +341,7 @@ public abstract class BlockTransaction {
         }
 
         @Override
-        public Optional<BiConsumer<PhaseContext<?>, CauseStackManager.StackFrame>> getFrameMutator() {
+        public Optional<BiConsumer<PhaseContext<@NonNull ?>, CauseStackManager.StackFrame>> getFrameMutator() {
             return Optional.empty();
         }
 
@@ -414,7 +412,7 @@ public abstract class BlockTransaction {
         }
 
         @Override
-        public Optional<BiConsumer<PhaseContext<?>, CauseStackManager.StackFrame>> getFrameMutator() {
+        public Optional<BiConsumer<PhaseContext<@NonNull ?>, CauseStackManager.StackFrame>> getFrameMutator() {
             return Optional.empty();
         }
 
