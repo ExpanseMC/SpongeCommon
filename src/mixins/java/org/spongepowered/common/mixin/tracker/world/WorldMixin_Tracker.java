@@ -69,6 +69,8 @@ public abstract class WorldMixin_Tracker implements WorldBridge {
     @Shadow public void shadow$neighborChanged(final BlockPos pos, final Block blockIn, final BlockPos fromPos) { } // Shadowed
     // @formatter:on
 
+    @Shadow protected float prevRainingStrength;
+
     /**
      * We introduce the protected method to be overridden in
      * {@code org.spongepowered.common.mixin.core.world.server.ServerWorldMixin#tracker$wrapTileEntityTick(ITickableTileEntity)}
