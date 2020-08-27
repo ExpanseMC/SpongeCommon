@@ -305,7 +305,6 @@
         "mcp.world.GameTypeMixin_API",
         "mcp.world.IBlockReaderMixin_API",
         "mcp.world.IEntityReaderMixin_API",
-        "mcp.world.IEnvironmentBlockReaderMixin_API",
         "mcp.world.IWorldGenerationBaseReaderMixin_API",
         "mcp.world.IWorldGenerationReaderMixin_API",
         "mcp.world.IWorldMixin_API",

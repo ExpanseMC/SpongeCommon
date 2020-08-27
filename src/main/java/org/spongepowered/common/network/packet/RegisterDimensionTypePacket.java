@@ -35,6 +35,7 @@ public final class RegisterDimensionTypePacket implements Packet {
     public int dimensionId;
     public ResourceLocation actualDimension;
     public ResourceLocation dimensionLogic;
+    public int biomeMagnifier;
 
     public RegisterDimensionTypePacket() {
     }

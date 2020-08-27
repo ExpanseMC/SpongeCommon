@@ -155,6 +155,14 @@ public abstract class EntityMixin implements EntityBridge, PlatformEntityBridge,
 
     // @formatter:on
 
+    @Shadow public abstract void shadow$setPosition(double x, double y, double z);
+
+    @Shadow public abstract double shadow$getPosX();
+
+    @Shadow public abstract double shadow$getPosZ();
+
+    @Shadow public abstract double shadow$getPosY();
+
     private boolean impl$isConstructing = true;
     @Nullable private Component impl$displayName;
     @Nullable private BlockPos impl$lastCollidedBlockPos;
@@ -232,7 +240,7 @@ public abstract class EntityMixin implements EntityBridge, PlatformEntityBridge,
             ((PlatformServerWorldBridge) this.shadow$getEntityWorld()).bridge$removeEntity((Entity) (Object) this, true);
             this.bridge$revive();
             this.shadow$setWorld(destinationWorld);
-            destinationWorld.func_217460_e((Entity) (Object) this);
+            destinationWorld.addFromAnotherDimension((Entity) (Object) this);
 
             originalWorld.resetUpdateEntityTick();
             destinationWorld.resetUpdateEntityTick();
@@ -812,8 +820,6 @@ public abstract class EntityMixin implements EntityBridge, PlatformEntityBridge,
 
     */
     /**
-     * @param stack
-     * @param offsetY
      * @return
      * @author gabizou - January 30th, 2016
      * @author blood - May 12th, 2016

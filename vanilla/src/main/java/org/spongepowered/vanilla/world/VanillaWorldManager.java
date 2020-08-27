@@ -44,6 +44,8 @@ import net.minecraft.world.ForcedChunksSaveData;
 import net.minecraft.world.GameType;
 import net.minecraft.world.WorldSettings;
 import net.minecraft.world.WorldType;
+import net.minecraft.world.biome.ColumnFuzzedBiomeMagnifier;
+import net.minecraft.world.biome.FuzzedBiomeMagnifier;
 import net.minecraft.world.chunk.listener.IChunkStatusListener;
 import net.minecraft.world.dimension.DimensionType;
 import net.minecraft.world.server.ServerChunkProvider;
@@ -684,7 +686,7 @@ public final class VanillaWorldManager implements SpongeWorldManager {
         ((MinecraftServerAccessor_Vanilla) this.server).accessor$setServerTime(Util.milliTime());
         chunkProvider.registerTicket(TicketType.START, spawnChunkPos, 11, Unit.INSTANCE);
 
-        while (chunkProvider.func_217229_b() != 441) {
+        while (chunkProvider.getLoadedChunksCount() != 441) {
             ((MinecraftServerAccessor_Vanilla) this.server).accessor$setServerTime(Util.milliTime() + 10L);
             ((MinecraftServerAccessor_Vanilla) this.server).accessor$runScheduledTasks();
         }
@@ -712,7 +714,7 @@ public final class VanillaWorldManager implements SpongeWorldManager {
     private DimensionType createDimensionType(final ResourceKey key, final SpongeDimensionType logicType, final String worldDirectory,
             final int dimensionId) {
         final DimensionType registeredType = DimensionTypeAccessor.accessor$construct(dimensionId, "", worldDirectory, logicType.getDimensionFactory(),
-                logicType.hasSkylight());
+                logicType.hasSkylight(), logicType == DimensionTypes.OVERWORLD.get() ? ColumnFuzzedBiomeMagnifier.INSTANCE : FuzzedBiomeMagnifier.INSTANCE);
         DimensionTypeAccessor.accessor$register(key.getFormatted(), registeredType);
 
         ((DimensionTypeBridge) registeredType).bridge$setSpongeDimensionType(logicType);
